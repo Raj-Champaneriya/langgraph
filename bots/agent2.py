@@ -3,7 +3,8 @@
 # Maintain a full conversation history using both message types
 # Use a different LLM model - "llama3.2:3b-instruct-fp16"
 # Create a sophisticated conversation flow
-# The goal is to create a form of memory for our agent
+# The goal is to create a form of memory for our agent (In-Memory)
+
 import os
 from typing import TypedDict, List, Union
 from langchain_core.messages import HumanMessage, AIMessage
