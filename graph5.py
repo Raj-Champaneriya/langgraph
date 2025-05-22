@@ -24,13 +24,13 @@ def ask_name_node(state: AgentState) -> AgentState:
     """Node that asks for the user's name."""
 
     # print("Let's get to know each other!")
-    state['result'] = f"{state['result']} \n Nice to meet you, {state['name']}!"
+    state['result'] = f"{state['result']} \nNice to meet you, {state['name']}!"
     return state
 
 
 def farewell_node(state: AgentState) -> AgentState:
     """Node that bids farewell to the user."""
-    state['result'] = f"{state['result']} \n Goodbye, {state['name']}! Have a great day!"
+    state['result'] = f"{state['result']} \nGoodbye, {state['name']}! Have a great day!"
     return state
 
 
