@@ -5,3 +5,4 @@ dotenv;
 typing
 langchain_openai;
 langchain_community;
+langchain-ollama;
