@@ -23,21 +23,33 @@ def greeting_node(state: AgentState) -> AgentState:
     # docString is important
     """Simple node that adds a greeting message to the state."""
 
-    state['message'] = f"Hello {state["message"]}, how is your day?"
+    state['message'] = f"Hello {state["message"]},"
     return state
 
+def compliment_node(state: AgentState) -> AgentState:
+    """Simple node that adds a compliment to the state."""
+    state['message'] += f" you're doing an amazing job!"
+    return state
+
+print("Creating a simple graph with two nodes...")
 
 graph = StateGraph(AgentState)
 graph.add_node("greeter", greeting_node)  # Add the greeting node to the graph
+graph.add_node("complimenter", compliment_node)  # Add the compliment node to the graph
 graph.set_entry_point("greeter")  # Set the start node
-graph.set_finish_point("greeter")  # Set the end node
+graph.add_edge("greeter", "complimenter")  # Connect the nodes
+graph.set_finish_point("complimenter")  # Set the end node
 app = graph.compile()  # Compile the graph into an executable application
 
-# Run the application with an initial state
-initial_state = AgentState(message="John")
-#result = app.run(initial_state)
-#print(result)  # Output: {'message': 'Hello John, how is your day?'} 
+print("Graph compiled successfully!")
+
 png_data = app.get_graph().draw_mermaid_png()
 with open("graph1.png", "wb") as f:
     f.write(png_data)
-print("Graph saved as graph.png")
+print("Graph saved as graph1.png")
+
+print("Invoking the graph with initial state...")
+
+result = app.invoke({"message": "John"})
+print(result)  # Output: {'message': 'Hello John, how is your day?'}
+# display(Image(filename="graph1.png"))  # Display the graph image
