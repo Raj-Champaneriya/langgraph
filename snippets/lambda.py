@@ -1,7 +1,8 @@
 from typing import Union, Callable
 
-square: Callable[[Union[int, float]], Union[int, float]] = lambda x: x * x
-x = 5  # Changed from "Raj" to a number
+Number = Union[int, float]
+square: Callable[[Number], Number] = lambda x: x * x
+x = 5 
 print(f"The square of {x} is {square(x)}")
 
 numbers = [1, 2, 3, 4, 5]
