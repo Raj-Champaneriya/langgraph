@@ -33,6 +33,9 @@ def setup_node(state: AgentState) -> AgentState:
 def adjust_bounds_node(state: AgentState) -> AgentState:
     """Node that adjusts the bounds based on the last guess."""
     hint: str = state['hint']
+    if hint == "":
+        return state
+
     last_guess: int = state['guesses'][-1] if len(state['guesses']) > 0 else 0
     if hint == "Higher":
         state['lower_bound'] = last_guess + 1
@@ -73,6 +76,7 @@ def should_continue_node(state: AgentState) -> Any:
     attempts: int = state['counter']
 
     if hint != "Correct" and attempts < 7:
+        print(f"CONTINUING: {attempts}/7 attempts used")
         return "loop"
     else:
         return "exit"
@@ -85,7 +89,7 @@ def farewell_node(state: AgentState) -> AgentState:
             f"\nCongratulations {state['name']}! Bot guessed the number {state['number']} in {state['counter']} attempts.")
     else:
         print(
-            f"\nSorry {state['name']}! Bot couldn't guess the number {state['number']} in {state['counter']} attempts.")
+            f"\nGAME OVER: Sorry {state['name']}! Bot couldn't guess the number {state['number']} in {state['counter']} attempts.")
     return state
 
 # Setup -> adjust_bounds -> guess -> hint -> farewell
