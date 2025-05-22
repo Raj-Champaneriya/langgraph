@@ -1,2 +1,7 @@
 mypy;
-langgraph
+langgraph;
+langchain;
+dotenv;
+typing
+langchain_openai;
+langchain_community;
