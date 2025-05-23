@@ -5,37 +5,15 @@
 # Test out robustness of our graph
 # Aim is to create a robust React agent
 
-# provides additional context without affecting the type itself
-from typing import Annotated
-# To automatically handle the state updates for sequences such as by adding new messages to a chat history
-from typing import Sequence, Any, TypedDict
-# The foundational class for all message types in LangGraph
-from langchain_core.messages import BaseMessage
-# Passes data back to LLM after it calls a tool such as the content
-from langchain_core.messages import ToolMessage
-# Message for providing instructions to the LLM
-from langchain_core.messages import SystemMessage
+import re
+import json
+from typing import Annotated, Sequence, Any, TypedDict
+from langchain_core.messages import BaseMessage, ToolMessage, SystemMessage, AIMessage
 from langchain_ollama.llms import OllamaLLM
 from langchain_core.tools import tool
 from langgraph.graph.message import add_messages
 from langgraph.graph import StateGraph, START, END
 from langgraph.prebuilt import ToolNode
-
-# reducer function
-# Rules that controls how updates from nodes are combined with the existing state
-# Tells us how to merge new data into the current state
-# Without a reducer, updates would have replaced the existing value entirely!
-
-# state = {"messages": ["Hi"]}  # Initial state
-# update = {"messages": ["Nice to meet you"]}  # Update state
-# # without a reducer state would be replaced
-# new_state = {"messages": ["Nice to meet you"]}
-
-# state = {"messages": ["Hi"]}  # Initial state
-# update = {"messages": ["Nice to meet you"]}  # Update state
-# # with a reducer state would be updated
-# new_state = {"messages": ["Hi", "Nice to meet you"]}
-# # The reducer function is used to combine the new state with the existing state
 
 
 class AgentState(TypedDict):
@@ -45,7 +23,6 @@ class AgentState(TypedDict):
 @tool
 def add(x: int, y: int) -> int:
     """This is an addition function that adds two numbers together."""
-
     print(f"TOOL CALL : Adding {x} and {y}")
     return x + y
 
@@ -59,7 +36,18 @@ def model_call(state: AgentState) -> Any:
     """This node will solve the request you input"""
 
     system_prompt = SystemMessage(
-        content="You are a helpful assistant. You can use tools to perform calculations."
+        content="""You are a helpful assistant that uses tools to solve problems.
+
+When you need to use a tool, use the following format:
+Action: tool_name
+Action Input: {"param1": value1, "param2": value2}
+
+For example, to add two numbers:
+Action: add
+Action Input: {"x": 5, "y": 3}
+
+First think about whether you need to use a tool. If you can answer directly, do so.
+"""
     )
 
     # Create a list with system prompt first, then add all messages from state
@@ -76,25 +64,49 @@ def model_call(state: AgentState) -> Any:
         response += token
     print()  # Reset color after response
 
-    return {"messages": [response]}
+    return {"messages": [AIMessage(content=response)]}
 
 
 def should_continue(state: AgentState) -> str:
     """This node will check if the conversation should continue"""
-
     messages = state["messages"]
     last_message = messages[-1]
 
-    # Check if the message is an AI message and has tool_calls attribute
+    # Check for tool call patterns in the content
     if hasattr(last_message, "content"):
-        # For LangChain's AIMessage format
-        if hasattr(last_message, "tool_calls") and last_message.tool_calls:
-            return "continue"
-        # For string content that might contain tool calls
-        elif isinstance(last_message.content, str) and "action" in last_message.content.lower():
-            return "continue"
+        content = last_message.content
+        if isinstance(content, str):
+            # Look for the Action: pattern
+            if "Action:" in content and "Action Input:" in content:
+                return "continue"
 
     return "end"
+
+
+def run_tool(state: AgentState):
+    """Parse and execute the tool call from the LLM's response"""
+    messages = state["messages"]
+    last_message = messages[-1]
+    content = last_message.content
+
+    # Extract tool name and input
+    action_match = re.search(r"Action: (\w+)", content)
+    input_match = re.search(r"Action Input: ({.*})", content)
+
+    if action_match and input_match:
+        tool_name = action_match.group(1)
+        try:
+            tool_input = json.loads(input_match.group(1))
+
+            # Find and execute the tool
+            for tool in tools:
+                if tool.name == tool_name:
+                    result = tool(**tool_input)
+                    return {"messages": [ToolMessage(content=str(result), tool_call_id=tool.name)]}
+        except json.JSONDecodeError:
+            return {"messages": [ToolMessage(content="Error: Invalid JSON in tool input", tool_call_id="error")]}
+
+    return {"messages": [ToolMessage(content="No valid tool call found", tool_call_id="error")]}
 
 
 def print_stream(stream):
@@ -114,17 +126,16 @@ def print_stream(stream):
     print()  # Reset color after response
 
 
+# Create the graph
 graph = StateGraph(AgentState)
 graph.add_node("our_agent", model_call)
-
-tool_node = ToolNode(tools=tools)
-graph.add_node("tools", tool_node)
+graph.add_node("tools", run_tool)  # Use our custom tool runner instead of ToolNode
 
 graph.set_entry_point("our_agent")
 graph.add_conditional_edges("our_agent", should_continue, {
-                            "continue": "tools",
-                            "end": END
-                            })
+    "continue": "tools",
+    "end": END
+})
 graph.add_edge("tools", "our_agent")
 graph.add_edge("our_agent", END)
 
@@ -132,3 +143,26 @@ agent = graph.compile()
 # Initialize conversation history with a system message
 inputs = {"messages": [("user", "Add 34 + 22.")]}
 print_stream(agent.stream(inputs, stream_mode="values"))
+
+# Test with another example
+print("\n--- New Conversation ---\n")
+inputs = {"messages": [("user", "What is 123 + 456?")]}
+print_stream(agent.stream(inputs, stream_mode="values"))
+
+# Output
+
+# User: Add 34 + 22.
+#  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  - 
+# AI: The result of adding 34 and 22 is 56.
+# The result of adding 34 and 22 is 56.
+
+# --- New Conversation ---
+
+# User: What is 123 + 456?
+#  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  - 
+# AI: I don't need to use any tools for this one. The answer is straightforward:
+
+# 123 + 456 = 579
+# I don't need to use any tools for this one. The answer is straightforward:
+
+# 123 + 456 = 579
