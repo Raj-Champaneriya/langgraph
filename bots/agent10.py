@@ -1,5 +1,7 @@
 # Agentic RAG :- [doer-checker] pattern with LLM as Judge
-# Learn from [MS sample](https://github.com/Azure-Samples/azure-search-python-samples/blob/main/Quickstart-Agentic-Retrieval/quickstart-agentic-retrieval.ipynb)
+# Learn from [MS sample]
+https://github.com/Azure-Samples/azure-search-python-samples/blob/main/Quickstart-Agentic-Retrieval/quickstart-agentic-retrieval.ipynb
+
 # One agent per data source and another agent to route to appropriate agent.
 
 # Learn how to do orchestration between multiple lang - graphs
