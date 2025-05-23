@@ -10,3 +10,6 @@ langchain-ollama;
 azure-cosmos;
 azure-identity;
 pydantic;
+fastapi[all];
+uvicorn;
+sse-starlette;

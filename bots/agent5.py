@@ -1,6 +1,7 @@
 # Objective
 # Practice LLM as Judge locally.
 # Get Test Result from llama3.2 and request IBM Granite to provide critique on the response with score
+# IBM granite is very bad at this let's see if we can get it to work for Checker
 
 import re
 import json
@@ -64,7 +65,8 @@ def search_orders(query: str) -> str:
 
 
 tools = [add, subtract, multiply, search_orders]
-model_name = "llama3.2:3b-instruct-fp16"
+model_name = "llama3.2:3b-instruct-fp16" # doer model
+#model_name = "granite3.2:8b" # judge model
 try:
     model = OllamaLLM(model=model_name, temperature=0.0)
     model.invoke("test connection")
