@@ -31,8 +31,14 @@ def subtract(x: int, y: int) -> int:
     print(f"TOOL EXECUTING: subtract(x={x}, y={y})")
     return x - y
 
+@tool
+def multiply(x: int, y: int) -> int:
+    """This is an multiplication function that multiplies two numbers from each other."""
+    print(f"TOOL EXECUTING: multiplication (x={x}, y={y})")
+    return x * y
 
-tools = [add, subtract]
+
+tools = [add, subtract, multiply]
 model_name = "llama3.2:3b-instruct-fp16"
 try:
     # Using temperature=0.0 for more deterministic tool use and responses
@@ -53,7 +59,7 @@ def model_call(state: AgentState) -> Any:
     system_prompt_content = """You are a helpful assistant that MUST use tools to solve math problems.
 
 IMPORTANT RULES:
-1. For ANY math calculation, even simple ones, you MUST use the appropriate tool (add, subtract).
+1. For ANY math calculation, even simple ones, you MUST use the appropriate tool (add, subtract, multiply).
 2. DO NOT calculate answers yourself - always use tools for calculations.
 3. When calling a tool, use EXACTLY this format:
    Action: tool_name
@@ -70,7 +76,7 @@ IMPORTANT RULES:
 
 5. Handling Errors or Unavailable Tools:
    - If you try to call a tool and it returns an error message in the `ToolMessage`, inform the user about the error.
-   - If the user asks for an operation for which you do not have a tool (e.g., multiplication, division), you MUST inform the user that you cannot perform that specific action because the required tool is not available. Your available tools are only: add, subtract.
+   - If the user asks for an operation for which you do not have a tool (e.g., average , division), you MUST inform the user that you cannot perform that specific action because the required tool is not available. Your available tools are only: add, subtract.
    - Do not make up results if a tool fails or is unavailable.
 """
     system_prompt = SystemMessage(content=system_prompt_content)
@@ -211,7 +217,7 @@ def run_conversation(input_text):
 
 
 # --- Test Cases ---
-run_conversation("Subtract 34 from 22. Wait, I mean 34 minus 22.")
-run_conversation("What is 123 + 456?")
-run_conversation("Can you multiply 4 by 9?")
+run_conversation("Subtract 95 from 150. Wait, I mean 150 minus 95.")
+run_conversation("What is 36 plus 45?")
+run_conversation("Can you multiply 9 by 2?")
 run_conversation("Hello there!")
