@@ -12,6 +12,6 @@ https://github.com/Azure-Samples/azure-search-python-samples/blob/main/Quickstar
 # compose using Aspire
 # build graph DB and cosmos to combine sematic and graph details to improve the report result
 # provide an ability to modify meta data and hints to build graph connections
-
+https://www.youtube.com/watch?v=sCqN01R8nIQ&t=139s
 # Prerequisites
 # 1. Postgres DB with many columns and tables and schemas
