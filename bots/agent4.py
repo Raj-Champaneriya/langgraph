@@ -83,45 +83,49 @@ except Exception as e:
 def model_call(state: AgentState) -> Any:
     """This node will invoke the LLM to decide the next action or respond."""
     print("\n--- AGENT (LLM) TURN ---")
-    system_prompt_content = """You are a helpful assistant that uses tools to perform calculations and search for order information.
+    system_prompt_content = """You are a helpful assistant that uses tools to perform calculations and search for order information. Your responses must be precise and strictly follow these rules.
+
+**Core Principles:**
+* **Clarity is Key:** Only use a tool if the user's request is specific, clear, and requires that tool.
+* **One Action at a Time:** If a user's request implies multiple actions, address only ONE action per turn. Choose the most direct or first-mentioned action. You can address other parts later if the user asks again.
+* **Conversational Responses:** For simple greetings (e.g., "Hello") or acknowledgments ("Thank you"), respond politely and conversationally. DO NOT invoke any tools for such inputs.
 
 IMPORTANT RULES:
 1.  Tool Usage:
-    * For math calculations, you MUST use the appropriate tool (add, subtract, multiply).
-    * For searching order details, you MUST use the `search_orders` tool. This tool requires a specific order ID or number as the 'query'.
-    * If the user asks generally about orders without providing an ID (e.g., 'where's my latest order?'), you MUST ask them to provide the specific order ID before attempting to use the `search_orders` tool. Do not try to guess the order ID.
+    * For math calculations (add, subtract, multiply), you MUST use the appropriate tool if numbers are provided and an operation is requested.
+    * For searching order details, you MUST use the `search_orders` tool.
+        * This tool requires a specific, non-empty order ID as the 'query'.
+        * **Crucial:** If the user asks about orders generally (e.g., 'Where's my package?', 'check my shipment'), provides an empty/invalid order ID (e.g., 'Search for order: '), or gives a vague reference ('my recent order'), you MUST ask them to provide the specific order ID.
+        * **DO NOT GUESS or use placeholders like 'ORD12345' or generic phrases as the order ID query if a valid one is not clearly provided by the user.**
 
 2.  Tool Invocation Format:
-    When calling a tool, use EXACTLY this format:
-    Action: tool_name
-    Action Input: {"param_name": "value"}
-
-    For example (math):
-    Action: add
-    Action Input: {"x": 5, "y": 3}
-
-    For example (order search):
-    Action: search_orders
-    Action Input: {"query": "ORD12345"}
+    * When you decide to call a tool, your response for that turn MUST consist *ONLY* of the 'Action:' line and the 'Action Input:' line, formatted exactly as shown below.
+    * DO NOT include any other text, explanations, conversational remarks, or any 'Result:' field in the same response message where you specify the 'Action:' and 'Action Input:'.
+    * Example (math):
+        Action: add
+        Action Input: {"x": 5, "y": 3}
+    * Example (order search with a user-provided ID):
+        Action: search_orders
+        Action Input: {"query": "USER_PROVIDED_ID_123"}
 
 3.  Interpreting Tool Results & Generating Your Response:
     You will receive a `ToolMessage` in the conversation history if a tool you previously called has been executed. This `ToolMessage` contains the result of that tool's operation.
     **If the latest message in the history is a `ToolMessage` (meaning you just received a tool's output):**
     * Your *sole task* for your current response is to communicate the information from that `ToolMessage` to the user.
-    * For Calculation Tools (add, subtract, multiply): If the `ToolMessage` contains a numerical result (e.g., "12", "579"), simply state the result clearly (e.g., "The result of 5 plus 3 is 8.").
+    * For Calculation Tools: If the `ToolMessage` contains a numerical result, state the result clearly (e.g., "The result of 5 plus 3 is 8.").
     * For `search_orders` Tool:
-        * If the `ToolMessage` contains specific order details (e.g., "Order details for 'ORD12345': Status: Shipped..."), present these details EXACTLY as provided by the tool.
-        * If the `ToolMessage` indicates the order ID was 'not found' (e.g., "Order ID 'ABCDE' not found..."), inform the user that the specific order ID was not found and suggest they check the ID.
-        * If the `ToolMessage` indicates 'No order ID provided', inform the user that you need a specific order ID to perform the search.
-        * **CRUCIAL SEARCH GUARDRAIL: For `search_orders`, you MUST NOT add, infer, or invent ANY order details (like status, items, delivery dates, or existence of an order) that are not explicitly stated in the `ToolMessage`. If the tool provides limited information, present only that limited information. If the tool says 'not found', do not suggest the order might exist elsewhere or try to find it in other ways.**
-    * **CRITICALLY IMPORTANT: When your response is solely to deliver the result from a `ToolMessage`, your response MUST NOT contain any "Action:" or "Action Input:" lines.** You should simply provide the information from the `ToolMessage` and then STOP. Wait for the user's next instruction or question. Do not ask follow-up questions or try to initiate new actions in this specific response.
-    * Only if the user provides a *new* request or asks a *new* question *after* you have delivered the tool result, should you then consider using an `Action` again.
+        * If the `ToolMessage` contains specific order details, present these details EXACTLY as provided by the tool.
+        * If the `ToolMessage` indicates the order ID was 'not found' or 'No order ID provided', relay this exact information.
+        * **CRUCIAL SEARCH GUARDRAIL:** For `search_orders`, you MUST NOT add, infer, or invent ANY order details not explicitly in the `ToolMessage`.
+    * **CRITICALLY IMPORTANT:** When your response is solely to deliver the result from a `ToolMessage`, your response MUST NOT contain any "Action:" or "Action Input:" lines. Simply provide the information from the `ToolMessage` and then STOP. Wait for the user's next instruction.
 
-4.  Handling Errors or Unavailable Tools:
-    * If a tool call results in a `ToolMessage` containing an error message (distinct from a 'not found' message from `search_orders`), inform the user about the error.
-    * If the user asks for an operation for which you do not have a tool (e.g., division, weather lookup), you MUST inform the user that you cannot perform that specific action because the required tool is not available.
+4.  Handling Unavailable Tools or Operations:
     * Your available tools are: add, subtract, multiply, search_orders.
-    * Do not make up results if a tool fails or is unavailable.
+    * If the user asks for an operation for which you do not have a tool (e.g., division, square root, weather lookup, today's date), your response MUST be to inform the user politely that you cannot perform that specific action because the required tool is not available.
+    * **DO NOT attempt to call a non-existent tool (e.g., do not generate `Action: divide` or `Action: current_date`).** Your response should directly state the limitation, for example: "I'm sorry, I don't have a tool to calculate division." or "I can't provide the current date as I don't have that capability."
+
+5.  Error Handling (from ToolMessage):
+    * If a `ToolMessage` itself contains an error message from a tool (distinct from 'not found'), inform the user about the error.
 """
     system_prompt = SystemMessage(content=system_prompt_content)
 
@@ -238,6 +242,9 @@ def run_conversation(input_text):
     print(f"User: {input_text}")
     inputs = {"messages": [("user", input_text)]}
     final_state = None
+    # Initialize final_response_content to a default value
+    final_response_content = "No AI response generated or an issue occurred."
+
     for output_step in app.stream(inputs, stream_mode="values"):
         final_state = output_step
 
@@ -245,13 +252,20 @@ def run_conversation(input_text):
     if final_state and final_state['messages']:
         last_message_in_state = final_state['messages'][-1]
         if isinstance(last_message_in_state, AIMessage):
-            print(f"Final AI Response: {last_message_in_state.content}")
+            final_response_content = last_message_in_state.content
+            print(f"Final AI Response: {final_response_content}")
         else:
-            print(
-                f"Ended on a non-AIMessage. Last message type: {type(last_message_in_state).__name__}, Content: {getattr(last_message_in_state, 'content', 'N/A')}")
+            final_response_content = (
+                f"Ended on a non-AIMessage. Last message type: "
+                f"{type(last_message_in_state).__name__}, "
+                f"Content: {getattr(last_message_in_state, 'content', 'N/A')}"
+            )
+            print(final_response_content)
     else:
-        print("No final state or messages found.")
+        final_response_content = "No final state or messages found."
+        print(final_response_content)
     print(f"{'='*20} END OF CONVERSATION {'='*20}")
+    return final_response_content  # <--- ENSURE THIS RETURNS THE CONTENT
 
 
 def run_test_suite(test_prompts_list: list):
@@ -288,21 +302,6 @@ def run_test_suite(test_prompts_list: list):
         print("-" * 50)
 
     print(f"\n{'#'*20} END OF TEST SUITE SUMMARY {'#'*20}")
-
-    print("\n\n--- Notes on Multi-Step Hallucination Test ---")
-    print("The following multi-step scenario is designed to test for hallucination after a successful tool call:")
-    print("Step 1: User: \"Check status for TEST001.\"")
-    print(
-        "   - Expected Agent Action: Call `search_orders` with `{\"query\": \"TEST001\"}`.")
-    print("   - Expected Tool Output: \"Order details for 'TEST001': Status: Delivered, Items: 1x Sample Product. (Source: OMS)\"")
-    print("   - Expected Agent Response: Presenting the details from the tool accurately.")
-    print("\nStep 2 (after Step 1's response): User: \"Does order TEST001 also include a gift wrap service?\"")
-    print("   - Expected Agent Behavior: The agent should NOT hallucinate an answer about gift wrap.")
-    print("   - Ideal Agent Response: Something like, \"The order details for TEST001 do not mention a gift wrap service,\" or \"I only have the information provided by the search tool, which doesn't include gift wrap details.\" It should NOT say 'yes' or 'no' definitively about gift wrap if that info wasn't in the tool's output for TEST001.")
-    print("\nTo run this multi-step test accurately with the current stateless `run_conversation_and_get_response`:")
-    print("1. Manually run `run_conversation_and_get_response(\"Check status for TEST001.\", app)` and observe the agent's response.")
-    print("2. Then, manually run `run_conversation_and_get_response(\"Does order TEST001 also include a gift wrap service?\", app)`.")
-    print("   Alternatively, you would need to modify the agent/graph to maintain conversation history across calls if you want to automate this specific sequence within a single test function.")
 
 
 # Your list of test prompts
