@@ -1,3 +1,10 @@
+# react Agent with strict tool usage
+# This code implements a stateful agent that uses tools for arithmetic and factual queries.
+# It tracks iterations and ensures strict adherence to tool usage format.
+# The agent uses a language model to generate responses and validate tool calls.
+# It also includes a workflow for managing the agent's state and tool execution.
+# Tool Call is working only in agent 3
+
 import re
 import json
 from typing import Annotated, Sequence, Any, TypedDict
@@ -15,49 +22,61 @@ class AgentState(TypedDict):
 
 @tool
 def add(x: int, y: int) -> int:
-    """Adds two numbers. Use for any arithmetic calculation."""
+    """This is an addition function that adds two numbers together."""
     print(f"TOOL CALL: Adding {x} and {y}")
     return x + y
 
 
 @tool
 def search(query: str) -> str:
-    """Searches knowledge base. Returns mock summary."""
+    """This is a search function that searches a knowledge base."""
     print(f"TOOL CALL: Searching {query}")
     return f"Summary for {query}: Quantum computing uses quantum-mechanical phenomena to perform computation. (Source: KB)"
 
+
 @tool
 def subtract(a: int, b: int):
-    """Subtraction function"""
+    """This is subtraction function that subtracts two numbers together."""
+    print(f"TOOL CALL: subtracting {a} and {b}")
     return a - b
+
 
 @tool
 def multiply(a: int, b: int):
-    """Multiplication function"""
+    """This is a multiplication function that multiplies two numbers together."""
+    print(f"TOOL CALL: multiply {a} and {b}")
     return a * b
 
+
 tools = [add, search, subtract, multiply]
-model = OllamaLLM(model="llama3.2:3b-instruct-fp16", temperature=0.1, tools=tools)
+model = OllamaLLM(model="llama3.2:3b-instruct-fp16",
+                  temperature=0.1, tools=tools)
 
 
 def model_call(state: AgentState) -> Any:
-    """Generate response with strict tool guidance"""
+    """This node will solve the request you input"""
     state["iteration"] += 1
 
-    system_prompt = SystemMessage(content="""You MUST use tools for:
-- Math (even simple)
-- Factual queries
+    system_prompt = SystemMessage(content="""You are a helpful assistant that MUST use tools to solve math problems.
 
-STRICT FORMAT:
+IMPORTANT: For ANY math calculation, even simple ones, you MUST use the appropriate tool.
+DO NOT calculate answers yourself - always use tools for calculations.
+
+When using a tool, use EXACTLY this format:
 Action: tool_name
-Action Input: {"param": value}
+Action Input: {"param1": value1, "param2": value2}
 
-After tool result, FINAL ANSWER must start with "Answer:"
-Example:
+For example, to add two numbers:
 Action: add
 Action Input: {"x": 5, "y": 3}
-Tool Result: 8
-Answer: The sum is 8""")
+
+For example, to subtract two numbers:
+Action: subtract
+Action Input: {"x": 5, "y": 3}
+
+STOP IF NO MATCHING TOOL AVAILABLE
+"""
+                                  )
 
     messages = [system_prompt] + list(state["messages"])
 
@@ -115,13 +134,13 @@ def run_tool(state: AgentState):
             }
 
     # Fallback for numbers in query
-    numbers = [int(n) for n in re.findall(r"\d+", last_msg)][:2]
-    if len(numbers) == 2:
-        result = add.invoke({"x": numbers[0], "y": numbers[1]})
-        return {
-            "messages": [ToolMessage(content=str(result), tool_call_id="add")],
-            "iteration": state["iteration"]
-        }
+    # numbers = [int(n) for n in re.findall(r"\d+", last_msg)][:2]
+    # if len(numbers) == 2:
+    #     result = add.invoke({"x": numbers[0], "y": numbers[1]})
+    #     return {
+    #         "messages": [ToolMessage(content=str(result), tool_call_id="add")],
+    #         "iteration": state["iteration"]
+    #     }
 
     return {
         "messages": [ToolMessage(content="Invalid tool format", tool_call_id="error")],
@@ -147,23 +166,31 @@ agent = workflow.compile()
 # Test cases
 print("==== Math Test ====")
 response = agent.invoke({
-    "messages": [HumanMessage(content="Calculate 17 plus 90 then subtract 4 and provide final answer. Then tell me a new joke every time")],
+    "messages": [HumanMessage(content="Add 34 + 22.")],
     "iteration": 0
 })
 
-print ("\n")
-print ("\n")
-print ("\n")
-print ("\n==== Start ====")
-print ("\n")
+print("\n")
+print("\n")
+print("\n")
+print("\n==== Start ====")
+print("\n")
 
 print("\nFinal Answer:", response["messages"][-1].content)
-print ("\n==== End ====")
-print ("\n")
+print("\n==== End ====")
+print("\n")
 
 # print("\n==== Search Test ====")
 # response = agent.invoke({
 #     "messages": [HumanMessage(content="Explain quantum computing")],
 #     "iteration": 0
 # })
+
+# print("\n")
+# print("\n")
+# print("\n")
+# print("\n==== Start ====")
+# print("\n")
 # print("\nFinal Answer:", response["messages"][-1].content)
+# print("\n==== End ====")
+# print("\n")

@@ -27,7 +27,14 @@ def add(x: int, y: int) -> int:
     return x + y
 
 
-tools = [add]
+@tool
+def subtract(x: int, y: int) -> int:
+    """This is an subtraction function that subtracts two numbers together."""
+    print(f"TOOL CALL : Subtracting {x} and {y}")
+    return x - y
+
+
+tools = [add, subtract]
 model = OllamaLLM(model="llama3.2:3b-instruct-fp16",
                   temperature=0.1, tools=tools)
 
@@ -48,6 +55,12 @@ Action Input: {"param1": value1, "param2": value2}
 For example, to add two numbers:
 Action: add
 Action Input: {"x": 5, "y": 3}
+
+For example, to subtract two numbers:
+Action: subtract
+Action Input: {"x": 5, "y": 3}
+
+STOP IF NO MATCHING TOOL AVAILABLE
 """
     )
 
@@ -58,7 +71,8 @@ Action Input: {"x": 5, "y": 3}
     last_message = messages[-1]
     if isinstance(last_message, HumanMessage) and any(op in last_message.content for op in ['+', 'add', 'sum', 'plus']):
         # Modify the message to explicitly ask for tool use
-        messages.append(HumanMessage(content="Please use the add tool to solve this calculation."))
+        messages.append(HumanMessage(
+            content="Please use the add tool to solve this calculation."))
 
     # Stream response token-by-token
     response_stream = model.stream(messages)
@@ -110,19 +124,20 @@ def run_tool(state: AgentState):
                 if tool.name == tool_name:
                     # Use the invoke method instead of calling the tool directly
                     result = tool.invoke(tool_input)
-                    print(f"TOOL CALL : Adding {tool_input.get('x')} and {tool_input.get('y')}")
+                    print(
+                        f"TOOL CALL : Adding {tool_input.get('x')} and {tool_input.get('y')}")
                     return {"messages": [ToolMessage(content=str(result), tool_call_id=tool.name)]}
         except json.JSONDecodeError:
             return {"messages": [ToolMessage(content="Error: Invalid JSON in tool input", tool_call_id="error")]}
 
     # If we get here, either there was no tool call or it was invalid
     # Let's extract numbers from the query and try to use the add tool anyway
-    numbers = re.findall(r'\d+', content)
-    if len(numbers) >= 2:
-        x, y = int(numbers[0]), int(numbers[1])
-        result = add.invoke({"x": x, "y": y})
-        print(f"TOOL CALL : Adding {x} and {y}")
-        return {"messages": [ToolMessage(content=str(result), tool_call_id="add")]}
+    # numbers = re.findall(r'\d+', content)
+    # if len(numbers) >= 2:
+    #     x, y = int(numbers[0]), int(numbers[1])
+    #     result = add.invoke({"x": x, "y": y})
+    #     print(f"Explicit TOOL CALL : Adding {x} and {y}")
+    #     return {"messages": [ToolMessage(content=str(result), tool_call_id="add")]}
 
     return {"messages": [ToolMessage(content="No valid tool call found", tool_call_id="error")]}
 
@@ -147,7 +162,8 @@ def print_stream(stream):
 # Create the graph
 graph = StateGraph(AgentState)
 graph.add_node("our_agent", model_call)
-graph.add_node("tools", run_tool)  # Use our custom tool runner instead of ToolNode
+# Use our custom tool runner instead of ToolNode
+graph.add_node("tools", run_tool)
 
 graph.set_entry_point("our_agent")
 graph.add_conditional_edges("our_agent", should_continue, {
@@ -160,10 +176,10 @@ graph.add_edge("our_agent", END)
 agent = graph.compile()
 
 # Initialize conversation history with a system message
-inputs = {"messages": [("user", "Add 34 + 22.")]}
+inputs = {"messages": [("user", "Subtract 34 - 22.")]}
 print_stream(agent.stream(inputs, stream_mode="values"))
 
-# Test with another example
-print("\n--- New Conversation ---\n")
-inputs = {"messages": [("user", "What is 123 + 456?")]}
-print_stream(agent.stream(inputs, stream_mode="values"))
+# # Test with another example
+# print("\n--- New Conversation ---\n")
+# inputs = {"messages": [("user", "What is 123 + 456?")]}
+# print_stream(agent.stream(inputs, stream_mode="values"))
