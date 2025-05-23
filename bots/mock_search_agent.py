@@ -147,14 +147,23 @@ agent = workflow.compile()
 # Test cases
 print("==== Math Test ====")
 response = agent.invoke({
-    "messages": [HumanMessage(content="Calculate 17 + 29 and then subtract 4")],
+    "messages": [HumanMessage(content="Calculate 17 plus 90 then subtract 4 and provide final answer. Then tell me a new joke every time")],
     "iteration": 0
 })
-print("\nFinal Answer:", response["messages"][-1].content)
 
-print("\n==== Search Test ====")
-response = agent.invoke({
-    "messages": [HumanMessage(content="Explain quantum computing")],
-    "iteration": 0
-})
+print ("\n")
+print ("\n")
+print ("\n")
+print ("\n==== Start ====")
+print ("\n")
+
 print("\nFinal Answer:", response["messages"][-1].content)
+print ("\n==== End ====")
+print ("\n")
+
+# print("\n==== Search Test ====")
+# response = agent.invoke({
+#     "messages": [HumanMessage(content="Explain quantum computing")],
+#     "iteration": 0
+# })
+# print("\nFinal Answer:", response["messages"][-1].content)
