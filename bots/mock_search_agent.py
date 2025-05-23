@@ -26,8 +26,17 @@ def search(query: str) -> str:
     print(f"TOOL CALL: Searching {query}")
     return f"Summary for {query}: Quantum computing uses quantum-mechanical phenomena to perform computation. (Source: KB)"
 
+@tool
+def subtract(a: int, b: int):
+    """Subtraction function"""
+    return a - b
 
-tools = [add, search]
+@tool
+def multiply(a: int, b: int):
+    """Multiplication function"""
+    return a * b
+
+tools = [add, search, subtract, multiply]
 model = OllamaLLM(model="llama3.2:3b-instruct-fp16", temperature=0.1, tools=tools)
 
 
@@ -138,7 +147,7 @@ agent = workflow.compile()
 # Test cases
 print("==== Math Test ====")
 response = agent.invoke({
-    "messages": [HumanMessage(content="Calculate 17 + 29")],
+    "messages": [HumanMessage(content="Calculate 17 + 29 and then subtract 4")],
     "iteration": 0
 })
 print("\nFinal Answer:", response["messages"][-1].content)
