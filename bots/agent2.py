@@ -37,8 +37,18 @@ def process(state: AgentState) -> AgentState:
     """This node will solve the request you input"""
     response = llm.invoke(state["messages"])
     print(f"LLM response: {COLORS['GREEN']}{response}{COLORS['RESET']}")
+    
     state["messages"].append(AIMessage(content=response))
-    print(f"Conversation history: {COLORS['BLUE']}{state['messages']}{COLORS['RESET']}")
+    
+    print(f"{COLORS['CYAN']}Conversation history: {COLORS['RESET']}")
+    for msg in state["messages"]:
+        if isinstance(msg, HumanMessage):
+            print(f"{COLORS['GREEN']}User: {msg.content}{COLORS['RESET']}")
+        elif isinstance(msg, AIMessage):
+            print(f"{COLORS['MAGENTA']}AI: {msg.content}{COLORS['RESET']}")
+        elif isinstance(msg, SystemMessage):
+            print(f"{COLORS['BLUE']}System: {msg.content}{COLORS['RESET']}")
+    
     return state
 
 
@@ -48,11 +58,12 @@ graph.add_edge(START, "process")
 graph.add_edge("process", END)
 agent = graph.compile()
 
-conversation_history: List[Union[HumanMessage, AIMessage]] = []
+conversation_history: List[Union[HumanMessage, AIMessage, SystemMessage]] = []
 
 # Initialize the conversation with a system message
 system_message = SystemMessage(content="You are a helpful assistant.")
-agent.invoke({"messages": [system_message]})
+conversation_history.append(system_message)
+
 user_input = input(f"{COLORS['YELLOW']}Enter your message: {COLORS['RESET']}")
 while user_input.lower() != "exit":
     conversation_history.append(HumanMessage(content=user_input))
@@ -60,11 +71,17 @@ while user_input.lower() != "exit":
     # Append the user input as a HumanMessage
     result = agent.invoke({"messages": conversation_history})
     conversation_history = result["messages"]
-    user_input = input("Enter your message: ")
+    
+    user_input = input(f"{COLORS['YELLOW']}Enter your message: {COLORS['RESET']}")
 
 with open("conversation_history.txt", "w") as f:
     for message in conversation_history:
-        speaker = "User" if isinstance(message, HumanMessage) else "AI"
+        if isinstance(message, HumanMessage):
+            speaker = "User"
+        elif isinstance(message, AIMessage):
+            speaker = "AI"
+        elif isinstance(message, SystemMessage):
+            speaker = "System"
         f.write(f"{speaker}:{message.content}\n")
 
 print("Conversation history saved to conversation_history.txt file.")
