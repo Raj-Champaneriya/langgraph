@@ -35,7 +35,6 @@ const ToolIcon = () => (
   </svg>
 );
 
-// Icon for Suggested Prompt Tiles (generic idea icon)
 const PromptTileIcon = () => (
   <svg
     width="24"
@@ -48,28 +47,30 @@ const PromptTileIcon = () => (
   </svg>
 );
 
-// --- Suggested Prompts Data ---
+// --- Suggested Prompts Data Array ---
+// This array holds the data for the suggested prompt tiles.
+// To change, add, or remove suggested prompts, modify this array.
 const suggestedPromptsData = [
   {
-    id: "archer_summary",
-    title: "Archer Summary",
-    prompt: "Give me the list of items from Archer in table format",
+    id: "addition_summary",
+    title: "Number Addition",
+    prompt: "What is 27 plus 35?",
   },
   {
-    id: "aramark_escalated_summary",
-    title: "Aramark Escalated Summary",
+    id: "subtraction_summary",
+    title: "Number Subtraction",  
     prompt:
-      "Give me the list of all items from Aramark which has isEscalated is true in table format",
+      "Calculate 250 minus 75.",
   },
   {
-    id: "last_week_summary",
-    title: "Last Week Summary",
-    prompt: "Give me the list of all items created last week",
+    id: "order_summary",
+    title: "Order Summary",
+    prompt: "I need details for order XYZ987.",
   },
   {
-    id: "aramark_summary",
-    title: "Aramark Summary",
-    prompt: "Give me the list of items from Aramark in table format",
+    id: "multiplication_summary",
+    title: "Number Multiplication",
+    prompt: "18 times 4, please.",
   },
 ];
 
@@ -80,6 +81,7 @@ function ChatComponent() {
   const currentAiMessageRef = useRef("");
   const chatViewRef = useRef(null);
   const requestStartTimeRef = useRef(null);
+  const inputRef = useRef(null); // Ref for the chat input field
 
   const scrollToBottom = () => {
     if (chatViewRef.current)
@@ -93,6 +95,7 @@ function ChatComponent() {
   useEffect(() => {
     const styleSheet = document.createElement("style");
     styleSheet.type = "text/css";
+    // (Stylesheet content remains the same as previous version)
     styleSheet.innerText = `
       @keyframes fadeInSlideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
       .message-entry { animation: fadeInSlideUp 0.3s ease-out forwards; }
@@ -114,11 +117,11 @@ function ChatComponent() {
     };
   }, []);
 
-  const handleSubmit = async (e, textOverride = null) => {
+  const handleSubmit = async (e) => {
+    // textOverride parameter removed
     if (e) e.preventDefault();
-    const textToSubmit = textOverride !== null ? textOverride : userInput;
-
-    if (!textToSubmit.trim() || isStreaming) return;
+    // Uses `userInput` state directly, which is set by typing or by handleSuggestedPromptClick
+    if (!userInput.trim() || isStreaming) return;
 
     requestStartTimeRef.current = Date.now();
     setIsStreaming(true);
@@ -126,14 +129,13 @@ function ChatComponent() {
     const newUserMessage = {
       id: uuidv4(),
       type: "user",
-      content: textToSubmit,
+      content: userInput,
       timestamp: new Date(),
     };
     setMessages((prev) => [...prev, newUserMessage]);
 
-    // If a suggested prompt was used, userInput state was set for feedback,
-    // now clear it. If user typed, clear it as well.
-    setUserInput("");
+    const textToSubmitForApi = userInput; // Keep a copy before clearing
+    setUserInput(""); // Clears input after grabbing its value
     currentAiMessageRef.current = "";
 
     const aiMessageId = uuidv4();
@@ -149,9 +151,10 @@ function ChatComponent() {
           "Content-Type": "application/json",
           Accept: "text/event-stream",
         },
-        body: JSON.stringify({ text: textToSubmit }), // Use textToSubmit
+        body: JSON.stringify({ text: textToSubmitForApi }), // Use the captured value
       });
 
+      // ... (rest of the handleSubmit logic remains the same as previous version)
       if (!response.ok) {
         const errorData = await response
           .json()
@@ -317,13 +320,17 @@ function ChatComponent() {
     }
   };
 
-  const handleSuggestedPromptClick = async (promptText) => {
+  const handleSuggestedPromptClick = (promptText) => {
     if (isStreaming) return;
-    setUserInput(promptText); // Update UI briefly for visual feedback
-    await handleSubmit(null, promptText); // Pass prompt directly to submit logic
+    setUserInput(promptText); // Set the input field with the selected prompt
+    if (inputRef.current) {
+      inputRef.current.focus(); // Focus the input field
+    }
   };
 
   // --- Styles ---
+  // (Styles object remains largely the same as the previous version,
+  //  only minor adjustments if needed for clarity, but layout is the same)
   const styles = {
     chatContainer: {
       display: "flex",
@@ -427,19 +434,18 @@ function ChatComponent() {
       paddingLeft: `calc(32px + 10px)`,
       textAlign: "left",
     },
-    // Suggested Prompts Styles
     suggestedPromptsContainer: {
       display: "grid",
-      gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", // Responsive columns
+      gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
       gap: "12px",
       padding: "15px 20px 10px 20px",
-      borderBottom: "1px solid #444444", // Separator from input form
-      backgroundColor: "#2d2d2d", // Consistent with chatBox background
+      borderBottom: "1px solid #444444",
+      backgroundColor: "#2d2d2d",
     },
     promptTile: {
       display: "flex",
-      alignItems: "flex-start", // Align icon and text block
-      backgroundColor: "#383838", // Slightly different from chatBox bg
+      alignItems: "flex-start",
+      backgroundColor: "#383838",
       padding: "12px 15px",
       borderRadius: "8px",
       cursor: "pointer",
@@ -448,15 +454,10 @@ function ChatComponent() {
       border: "1px solid #4a4a4a",
     },
     promptTileHover: {
-      // Apply this on hover via JS if needed, or use :hover in injected CSS
       backgroundColor: "#454545",
       transform: "translateY(-2px)",
     },
-    promptTileIconContainer: {
-      // Wrapper for the icon if more styling is needed for it
-      marginRight: "12px",
-      marginTop: "2px", // Align icon better with title
-    },
+    promptTileIconContainer: { marginRight: "12px", marginTop: "2px" },
     promptTileTextContainer: {
       display: "flex",
       flexDirection: "column",
@@ -468,12 +469,7 @@ function ChatComponent() {
       color: "#e0e0e0",
       marginBottom: "4px",
     },
-    promptTileText: {
-      fontSize: "0.85em",
-      color: "#b0b0b0",
-      lineHeight: "1.4",
-    },
-    // Form and Input Styles
+    promptTileText: { fontSize: "0.85em", color: "#b0b0b0", lineHeight: "1.4" },
     form: {
       display: "flex",
       padding: "15px 20px",
@@ -544,7 +540,6 @@ function ChatComponent() {
               className="message-entry"
               style={styles.messageEntry}
             >
-              {/* ... message rendering logic (unchanged) ... */}
               {msg.type === "tool_activity" ? (
                 <div style={styles.toolActivityMessage}>
                   <ToolIcon />
@@ -603,7 +598,6 @@ function ChatComponent() {
           ))}
         </div>
 
-        {/* --- Suggested Prompts Section --- */}
         {!isStreaming && (
           <div style={styles.suggestedPromptsContainer}>
             {suggestedPromptsData.map((p) => (
@@ -652,10 +646,10 @@ function ChatComponent() {
         {isStreaming &&
           !messages.some(
             (m) => m.id === currentAiMessageRef.current && m.content === "..."
-          ) && // Check if current AI message still placeholder
+          ) &&
           (!messages.length ||
             messages[messages.length - 1]?.type !== "ai" ||
-            messages[messages.length - 1]?.content === "...") && ( // More robust check for thinking
+            messages[messages.length - 1]?.content === "...") && (
             <div style={styles.thinkingIndicator} className="thinking-dots">
               Agent is thinking
             </div>
@@ -663,6 +657,8 @@ function ChatComponent() {
 
         <form onSubmit={handleSubmit} style={styles.form}>
           <input
+            ref={inputRef} // Assign the ref to the input field
+            id="chat-input-field" // Added ID for potential direct targeting if needed
             type="text"
             value={userInput}
             onChange={(e) => setUserInput(e.target.value)}
